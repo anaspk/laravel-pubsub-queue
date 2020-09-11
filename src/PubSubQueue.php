@@ -131,9 +131,9 @@ class PubSubQueue extends Queue implements QueueContract
     {
         $topic = $this->getTopic($this->getQueue($queue));
 
-        if (! $topic->exists()) {
-            return;
-        }
+        // if (! $topic->exists()) {
+        //     return;
+        // }
 
         $subscription = $topic->subscription($this->getSubscriberName());
         $messages = $subscription->pull([
@@ -290,7 +290,7 @@ class PubSubQueue extends Queue implements QueueContract
         $queue = $this->getQueue($queue);
         $topic = $this->pubsub->topic($queue);
 
-        if (! $topic->exists() && $create) {
+        if ($create && ! $topic->exists()) {
             $topic->create();
         }
 
@@ -308,9 +308,9 @@ class PubSubQueue extends Queue implements QueueContract
     {
         $subscription = $topic->subscription($this->getSubscriberName());
 
-        if (! $subscription->exists()) {
-            $subscription = $topic->subscribe($this->getSubscriberName());
-        }
+        // if (! $subscription->exists()) {
+        //     $subscription = $topic->subscribe($this->getSubscriberName());
+        // }
 
         return $subscription;
     }
