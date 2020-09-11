@@ -87,7 +87,7 @@ class PubSubQueue extends Queue implements QueueContract
     {
         $topic = $this->getTopic($queue, true);
 
-        $this->subscribeToTopic($topic);
+        // $this->subscribeToTopic($topic);
 
         $publish = ['data' => base64_encode($payload)];
 
@@ -184,7 +184,7 @@ class PubSubQueue extends Queue implements QueueContract
 
         $topic = $this->getTopic($this->getQueue($queue), true);
 
-        $this->subscribeToTopic($topic);
+        // $this->subscribeToTopic($topic);
 
         return $topic->publishBatch($payloads);
     }
