@@ -34,6 +34,16 @@ class PubSubQueue extends Queue implements QueueContract
     protected $subscriber;
 
     /**
+     * Cache topics to avoid excessive pubsub API calls
+     */
+    private $topics = [];
+
+    /**
+     * Cache subscriptions to avoid excessive pubsub API calls
+     */
+    private $subscriptions = [];
+
+    /**
      * Create a new GCP PubSub instance.
      *
      * @param \Google\Cloud\PubSub\PubSubClient $pubsub
@@ -135,7 +145,7 @@ class PubSubQueue extends Queue implements QueueContract
         //     return;
         // }
 
-        $subscription = $topic->subscription($this->getSubscriberName());
+        $subscription = $this->getSubscription($topic, $this->getSubscriberName());
         $messages = $subscription->pull([
             'returnImmediately' => true,
             'maxMessages' => 1,
@@ -197,7 +207,8 @@ class PubSubQueue extends Queue implements QueueContract
      */
     public function acknowledge(Message $message, $queue = null)
     {
-        $subscription = $this->getTopic($this->getQueue($queue))->subscription($this->getSubscriberName());
+        $topic = $this->getTopic($this->getQueue($queue));
+        $subscription = $this->getSubscription($topic, $this->getSubscriberName());
         $subscription->acknowledge($message);
     }
 
@@ -210,7 +221,8 @@ class PubSubQueue extends Queue implements QueueContract
      */
     public function modifyAckDeadline(Message $message, int $seconds, $queue = null)
     {
-        $subscription = $this->getTopic($this->getQueue($queue))->subscription($this->getSubscriberName());
+        $topic = $this->getTopic($this->getQueue($queue));
+        $subscription = $this->getSubscription($topic, $this->getSubscriberName());
         $subscription->modifyAckDeadline($message, $seconds);
     }
 
@@ -288,10 +300,18 @@ class PubSubQueue extends Queue implements QueueContract
     public function getTopic($queue, $create = false)
     {
         $queue = $this->getQueue($queue);
-        $topic = $this->pubsub->topic($queue);
+        $topic = null;
 
-        if ($create && ! $topic->exists()) {
-            $topic->create();
+        if (array_key_exists($queue, $this->topics)) {
+            $topic = $this->topics[$queue];
+        } else {
+            $topic = $this->pubsub->topic($queue);
+
+            if ($create && ! $topic->exists()) {
+                $topic->create();
+            }
+
+            $this->topics[$queue] = $topic;
         }
 
         return $topic;
@@ -306,7 +326,7 @@ class PubSubQueue extends Queue implements QueueContract
      */
     public function subscribeToTopic(Topic $topic)
     {
-        $subscription = $topic->subscription($this->getSubscriberName());
+        $subscription = $this->getSubscription($topic, $this->getSubscriberName());
 
         // if (! $subscription->exists()) {
         //     $subscription = $topic->subscribe($this->getSubscriberName());
@@ -318,13 +338,32 @@ class PubSubQueue extends Queue implements QueueContract
     /**
      * Get subscriber name.
      *
-     * @param  \Google\Cloud\PubSub\Topic  $topic
-     *
      * @return string
      */
     public function getSubscriberName()
     {
         return $this->subscriber;
+    }
+    
+    /**
+     * Get subscription object.
+     *
+     * @param  \Google\Cloud\PubSub\Topic  $topic
+     * @param  string $subscriberName
+     *
+     * @return \Google\Cloud\PubSub\Subscription
+     */
+    public function getSubscription($topic, $subscriberName)
+    {
+        $subscription = null;
+        if (array_key_exists($subscriberName, $this->subscriptions)) {
+            $subscription = $this->subscriptions[$subscriberName];
+        } else {
+            $subscription = $topic->subscription($subscriberName);
+            $this->subscriptions[$subscriberName] = $subscription;
+        }
+
+        return $subscription;
     }
 
     /**
